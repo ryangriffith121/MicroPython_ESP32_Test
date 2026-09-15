@@ -2,6 +2,9 @@
 
 A MicroPython project for the ESP32 that connects to Wi-Fi, syncs the time over NTP, and drives a 128x64 SSD1306 OLED display showing a name/time header plus a small animated bouncing triangle.
 
+Image of the program running on an ESP32 and I2C OLED screen:
+<img width="4032" height="3024" alt="IMG_0608" src="https://github.com/user-attachments/assets/1c30842f-b924-4146-b1a8-59fb6efc360a" />
+
 ## ✨ What it does
 
 - Scans nearby Wi-Fi networks and prints their SSID, signal strength, and channel over serial
