@@ -2,6 +2,8 @@
 
 A MicroPython project for the ESP32 that connects to Wi-Fi, pulls live stock/index quotes from Yahoo Finance, and displays a scrolling ticker with price, daily % change, and a sparkline on a 128x64 SSD1306 OLED.
 
+<img width="4032" height="3024" alt="IMG_0610" src="https://github.com/user-attachments/assets/7bcabc51-3a87-4b21-b8ad-ea94f86cd1b2" />
+
 ## ✨ What it does
 
 - Scans nearby Wi-Fi networks and connects using configured credentials
