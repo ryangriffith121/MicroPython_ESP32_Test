@@ -94,18 +94,25 @@ def get_stock_data(symbol, range_="1d", interval="5m"):
     
     return [data, price, change, pct, closes]
         
-def draw_sparkline(oled, closes, x0, y0, x1, y1):
+def draw_sparkline(oled, closes, bound_x_min, bound_y_min, bound_x_max, bound_y_max):
     if len(closes) < 2:
         return
-    lo, hi = min(closes), max(closes)
-    span = hi - lo if hi != lo else 1
-    n = len(closes)
-    px, py = x0, y1 - int((closes[0] - lo) / span * (y1 - y0))
-    for i in range(1, n):
-        x = x0 + int(i / (n - 1) * (x1 - x0))
-        y = y1 - int((closes[i] - lo) / span * (y1 - y0))
-        oled.line(px, py, x, y, 1)
-        px, py = x, y
+    
+    market_low, market_high = min(closes), max(closes)
+
+    if market_high != market_low:
+        span = market_high - market_low 
+    else:
+        span = 1
+
+    num_datapoints = len(closes)
+
+    previous_x, previous_y = bound_x_min, bound_y_max - int((closes[0] - market_low) / span * (bound_y_max - bound_y_min))
+    for i in range(1, num_datapoints):
+        x_pos = bound_x_min + int(i / (num_datapoints - 1) * (bound_x_max - bound_x_min))
+        y_pos = bound_y_max - int((closes[i] - market_low) / span * (bound_y_max - bound_y_min))
+        oled.line(previous_x, previous_y, x_pos, y_pos, 1)
+        previous_x, previous_y = x_pos, y_pos
 
 for i in range(len(stock_tickers)):
     print(f"Requesting data for ${stock_tickers[i]}")
@@ -141,8 +148,10 @@ while True:
         title_pos = -128 - (len(title) * 8 * 3)
     
     oled.fill(0)
+
+    title_spacing = 8
     
-    title_string = f"--------{title}--------{title}--------{title}--------"
+    title_string = f"{"-" * title_spacing}{title}{"-" * title_spacing}{title}{"-" * title_spacing}{title}{"-" * title_spacing}"
     oled.text(title_string, int(title_pos), -2, 1)
     
     if stock_change[current_stock] > 0:
