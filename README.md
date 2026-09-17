@@ -4,6 +4,8 @@ A simple stock market ticker made with **MicroPython**, an **ESP32**, and a **12
 
 The ESP32 connects to Wi-Fi and retrieves stock market data from the **Yahoo Finance Chart API**, then displays the current price, percentage change, and a sparkline of historical prices.
 
+<img width="4032" height="3024" alt="IMG_0610" src="https://github.com/user-attachments/assets/cb3ed6d2-2659-4725-b8fa-fcae9b2a98af" />
+
 ## ✨ Features
 
 This project combines an ESP32, an OLED display, and online market data to create a small standalone stock ticker.
