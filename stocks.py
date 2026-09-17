@@ -20,8 +20,8 @@ oled.text('Loading', 32, 28)
 
 oled.show()
 
-SSID = "RyaniPhone"
-PASSWORD = "12345678"
+SSID = "XXXXXXXX"
+PASSWORD = "XXXXXXXX"
 
 wlan = network.WLAN(network.STA_IF)
 wlan.active(True)
