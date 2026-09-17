@@ -1,66 +1,111 @@
-# 📈 mpy-stocks (MicroPython_Stocks)
+# 📈 MicroPython Stocks (mpy-stocks)
 
-A MicroPython project for the ESP32 that connects to Wi-Fi, pulls live stock/index quotes from Yahoo Finance, and displays a scrolling ticker with price, daily % change, and a sparkline on a 128x64 SSD1306 OLED.
+A simple stock market ticker made with **MicroPython**, an **ESP32**, and a **128×64 SSD1306 OLED display**.
 
-<img width="4032" height="3024" alt="IMG_0610" src="https://github.com/user-attachments/assets/7bcabc51-3a87-4b21-b8ad-ea94f86cd1b2" />
+The ESP32 connects to Wi-Fi and retrieves stock market data from the **Yahoo Finance Chart API**, then displays the current price, percentage change, and a sparkline of historical prices.
 
-## ✨ What it does
+## ✨ Features
 
-- Scans nearby Wi-Fi networks and connects using configured credentials
-- Fetches quote data for a list of tickers from Yahoo Finance's chart API (`query1.finance.yahoo.com/v8/finance/chart/{symbol}`), including current price, previous close, % change, and a series of recent closing prices
-- Cycles through the configured tickers automatically, updating every few seconds
-- On the OLED, shows:
-  - A continuously scrolling `mpy-stocks` title banner
-  - The current ticker symbol and price, with an up/down/flat glyph (`^` / `v` / `-`) based on change from previous close
-  - The selected time range and interval (e.g. `1d` / `5m`)
-  - The percent change for the current ticker
-  - A bordered sparkline chart of recent closing prices for the current ticker
-- Uses delta-time (`time.ticks_ms`/`time.ticks_diff`) for the scrolling title so its speed is independent of loop timing
+This project combines an ESP32, an OLED display, and online market data to create a small standalone stock ticker.
 
-## 🔧 Hardware
+- 📡 Wi-Fi network scanning and connection
+- 📊 Stock market data from Yahoo Finance
+- 📈 Historical price sparklines
+- 🔄 Automatic cycling through stocks
+- ⏱️ Multiple time ranges and intervals
+- 🔁 Automatic request retries
+- 🖥️ 128×64 OLED display
+- ⚡ Runs on an ESP32
 
-- ESP32 dev board
-- SSD1306 OLED display, 128x64, I2C
-- Wiring (as configured in `stocks.py`):
-  - SCL → GPIO 22
-  - SDA → GPIO 21
+## 📊 Stocks
 
-## 📁 Files
+The ticker can display multiple stocks and market indices. The current configuration includes seven securities:
 
-| File | Purpose |
-| --- | --- |
-| `stocks.py` | Main application: Wi-Fi connect, Yahoo Finance data fetch, and the OLED ticker/sparkline loop |
-| `ssd1306.py` | MicroPython SSD1306 display driver (I2C and SPI), subclasses `framebuf.FrameBuffer` for drawing primitives |
-| `TERATERM.INI` | Tera Term terminal configuration, used for connecting to the ESP32's serial console over USB |
+```python
+stock_tickers = [
+    "^DJI",
+    "NVDA",
+    "TSM",
+    "GOOG",
+    "MSFT",
+    "AMZN",
+    "AVGO"
+]
+```
+
+Additional Yahoo Finance ticker symbols can be added to the `stock_tickers` list.
+
+## ⏱️ Time Ranges
+
+The program retrieves different amounts of historical data depending on the selected range. Each range uses a different interval to provide an appropriate number of data points for the OLED graph.
+
+| Range | Interval |
+|---|---|
+| `1d` | `5m` |
+| `1mo` | `1d` |
+| `ytd` | `1wk` |
+
+## 🔌 Hardware
+
+The project uses an ESP32 to handle the networking and data processing, along with a small SSD1306 OLED for displaying the information.
+
+- ESP32
+- 128×64 SSD1306 OLED
+- USB cable
+
+### OLED Wiring
+
+The OLED communicates with the ESP32 over I2C using GPIO 22 for the clock signal and GPIO 21 for the data signal.
+
+| OLED | ESP32 |
+|---|---|
+| SCL | GPIO 22 |
+| SDA | GPIO 21 |
+| VCC | 3.3V |
+| GND | GND |
 
 ## 🚀 Setup
 
-1. Flash MicroPython onto the ESP32 (via `esptool` or Thonny).
-2. Copy `ssd1306.py` and `stocks.py` onto the device's filesystem.
-3. In `stocks.py`, set your own Wi-Fi credentials:
+First, install MicroPython on the ESP32 and upload the required Python files. The Wi-Fi credentials also need to be configured before running the program.
 
-   ```python
-   SSID = "your-network-name"
-   PASSWORD = "your-network-password"
-   ```
+Upload:
 
-4. (Optional) Edit the ticker list, range, and interval to taste:
+```text
+stocks.py
+ssd1306.py
+```
 
-   ```python
-   range = "1d"
-   interval = "5m"
-   stock_tickers = ["^DJI", "NVDA", "TSM"]
-   ```
+Configure the Wi-Fi credentials in `stocks.py`:
 
-   Any symbol Yahoo Finance's chart API recognizes will work, including indices (e.g. `^DJI`, `^GSPC`).
+```python
+SSID = "your-network"
+PASSWORD = "your-password"
+```
 
-5. Wire the SSD1306 display's SCL/SDA to GPIO 22/21 (or update the pin numbers in `stocks.py` to match your wiring).
-6. Reset the board. It will scan and connect to Wi-Fi, fetch data for each configured ticker, then continuously cycle through them on the display.
+Once configured, run `stocks.py` on the ESP32.
 
-Serial output (Wi-Fi scan results, connection status, per-ticker fetch progress) can be viewed with Tera Term using the included `TERATERM.INI`, or any other serial terminal.
+## 🔄 How It Works
 
-## 📝 Notes
+When started, the ESP32 first scans for available Wi-Fi networks and connects to the configured network. It then requests stock data from Yahoo Finance for each ticker and time range.
 
-- If Wi-Fi connection fails, the script prints `wlan.status()` after a 15-second timeout.
-- Quote data is fetched once at boot for each ticker; the board does not currently re-fetch periodically, so prices reflect the values at power-on/reset.
-- The sparkline auto-scales to the min/max of the fetched closing prices for the currently displayed ticker.
+The retrieved prices, percentage changes, and historical closing prices are stored in memory. The OLED then cycles through the stocks and displays the corresponding information and sparkline.
+
+## 📁 Project Structure
+
+The repository contains the main stock ticker program, the SSD1306 display driver, and the configuration used for serial communication.
+
+```text
+MicroPython_Stocks/
+├── stocks.py
+├── ssd1306.py
+├── TERATERM.INI
+└── README.md
+```
+
+## 🌐 API
+
+Stock information is retrieved from the **Yahoo Finance Chart API**. The program sends a request for each ticker and extracts the current price, previous close, percentage change, and historical closing prices from the returned JSON data.
+
+```text
+https://query1.finance.yahoo.com/v8/finance/chart/
+```
