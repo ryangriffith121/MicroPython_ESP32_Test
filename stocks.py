@@ -3,11 +3,11 @@ import ssd1306
 
 import time
 import math
+import gc
 
 import urequests
 import ujson
 import network
-import ntptime
 
 i2c = SoftI2C(scl=Pin(22), sda=Pin(21))
 
@@ -20,8 +20,8 @@ oled.text('Loading', 32, 28)
 
 oled.show()
 
-SSID = "XXXXXXXX"
-PASSWORD = "XXXXXXXX"
+SSID = "RyaniPhone"
+PASSWORD = "12345678"
 
 wlan = network.WLAN(network.STA_IF)
 wlan.active(True)
@@ -63,16 +63,15 @@ while not wlan.isconnected():
 if wlan.isconnected():
     print("\nConnected! Network config:", wlan.ifconfig())
 
-range = "1d"
-interval = "5m"
+range_opts = ["1d", "1mo", "ytd"]
+interval_opts = ["5m", "1d", "1wk"]
 
-stock_tickers = ["^DJI", "NVDA", "TSM"]
+stock_tickers = ["^DJI", "NVDA", "TSM", "GOOG", "MSFT", "AMZN", "AVGO"]
 
-stock_data = []
-stock_prices = []
-stock_change = []
-stock_pct = []
-stock_closes = []
+stock_prices = [[] for _ in stock_tickers]
+stock_change = [[] for _ in stock_tickers]
+stock_pct = [[] for _ in stock_tickers]
+stock_closes = [[] for _ in stock_tickers]
 
 def get_stock_data(symbol, range_="1d", interval="5m"):
     url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range={range_}&interval={interval}"
@@ -92,7 +91,7 @@ def get_stock_data(symbol, range_="1d", interval="5m"):
     closes = result["indicators"]["quote"][0]["close"]
     closes = [c for c in closes if c is not None]
     
-    return [data, price, change, pct, closes]
+    return [price, change, pct, closes]
         
 def draw_sparkline(oled, closes, bound_x_min, bound_y_min, bound_x_max, bound_y_max):
     if len(closes) < 2:
@@ -114,15 +113,33 @@ def draw_sparkline(oled, closes, bound_x_min, bound_y_min, bound_x_max, bound_y_
         oled.line(previous_x, previous_y, x_pos, y_pos, 1)
         previous_x, previous_y = x_pos, y_pos
 
-for i in range(len(stock_tickers)):
-    print(f"Requesting data for ${stock_tickers[i]}")
-    data = get_stock_data(stock_tickers[i], range, interval)
-    print(f"Got data for ${stock_tickers[i]}")
-    stock_data.append(data[0])
-    stock_prices.append(data[1])
-    stock_change.append(data[2])
-    stock_pct.append(data[3])
-    stock_closes.append(data[4])
+def fetch_with_retry(ticker, range_, interval, retries=10):
+    for attempt in range(retries):
+        print(f"Attempt no: {attempt + 1}")
+        try:
+            print(f"Obtained ${ticker} for {range_} per {interval}")
+            return get_stock_data(ticker, range_, interval)
+        except OSError as e:
+            print(f"{ticker} {range_}/{interval} failed ({e}), retry {attempt + 1}/{retries}")
+            time.sleep_ms(800)
+    return None 
+
+for i in range(len(range_opts)):
+    for j in range(len(stock_tickers)):
+        gc.collect()
+        print(f"Requested ${stock_tickers[j]} for {range_opts[i]} per {interval_opts[i]}")
+        data = fetch_with_retry(stock_tickers[j], range_opts[i], interval_opts[i])
+        if data is None:
+            stock_prices[j].append(None)
+            stock_change[j].append(None)
+            stock_pct[j].append(None)
+            stock_closes[j].append([])
+            continue
+        stock_prices[j].append(data[0])
+        stock_change[j].append(data[1])
+        stock_pct[j].append(data[2])
+        stock_closes[j].append(data[3])
+        time.sleep_ms(400)
 
 current_stock = 0
 
@@ -139,8 +156,11 @@ while True:
     last_time = now
 
     dt = delta_ms / 1000
+    
+    time_per_stock = 20000
 
-    current_stock = math.floor((time.ticks_ms()/3000) % (len(stock_tickers)))
+    current_stock = math.floor((time.ticks_ms()/time_per_stock) % (len(stock_tickers)))
+    current_mode = math.floor((time.ticks_ms()/(time_per_stock/len(range_opts))) % (len(range_opts)))
     
     title_pos += dt * 4
     
@@ -154,37 +174,40 @@ while True:
     title_string = f"{"-" * title_spacing}{title}{"-" * title_spacing}{title}{"-" * title_spacing}{title}{"-" * title_spacing}"
     oled.text(title_string, int(title_pos), -2, 1)
     
-    if stock_change[current_stock] > 0:
+    if stock_change[current_stock][current_mode] > 0:
         stock_glyph = "^"
-    elif stock_change[current_stock] < 0:
+    elif stock_change[current_stock][current_mode] < 0:
         stock_glyph = "v"
     else:
         stock_glyph = "-"
 
-    oled.text(f"({stock_glyph}){stock_tickers[current_stock]}:{stock_prices[current_stock]:>{12 - len(stock_tickers[current_stock])}}", 0, 8, 1)
+    oled.text(f"({stock_glyph}){stock_tickers[current_stock]}:{stock_prices[current_stock][current_mode]:>{12 - len(stock_tickers[current_stock])}}", 0, 8, 1)
     
     oled.text("t:", 0, 16)
     
-    oled.text(f"{range:>3}", 4, 24)
+    oled.text(f"{range_opts[current_mode]:>3}", 4, 24)
     
     oled.text("int:", 0, 32)
     
-    oled.text(f"{interval:>3}", 4, 40)
+    oled.text(f"{interval_opts[current_mode]:>3}", 4, 40)
     
     oled.text("pct:", 0, 48)
-    if stock_pct[current_stock] > 0:
-        if stock_pct[current_stock] >= 1:
-            oled.text(f"+{str(stock_pct[current_stock])[0:3]}", 0, 56)
+    if stock_pct[current_stock][current_mode] > 0:
+        if stock_pct[current_stock][current_mode] >= 1:
+            oled.text(f"+{str(stock_pct[current_stock][current_mode])[0:3]}", 0, 56)
         else:
-            oled.text(f"+{str(stock_pct[current_stock])[1:4]}", 0, 56)
+            oled.text(f"+{str(stock_pct[current_stock][current_mode])[1:4]}", 0, 56)
     else:
-        if stock_pct[current_stock] <= -1:
-            oled.text(f"-{str(stock_pct[current_stock])[1:4]}", 0, 56)
+        if stock_pct[current_stock][current_mode] <= -1:
+            oled.text(f"-{str(stock_pct[current_stock][current_mode])[1:4]}", 0, 56)
         else:
-            oled.text(f"-{str(stock_pct[current_stock])[2:5]}", 0, 56)
+            oled.text(f"-{str(stock_pct[current_stock][current_mode])[2:5]}", 0, 56)
         
     oled.rect(int(bounds[0]), int(bounds[1]), int(bounds[2] - bounds[0]), int(bounds[3] - bounds[1]), 1)
     
-    draw_sparkline(oled, stock_closes[current_stock], bounds[0], bounds[1], bounds[2], bounds[3])
+    draw_sparkline(oled, stock_closes[current_stock][current_mode], bounds[0] + 1, bounds[1] + 1, bounds[2] - 1, bounds[3] - 1)
     
     oled.show()
+
+
+
